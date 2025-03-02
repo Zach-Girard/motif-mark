@@ -3,6 +3,7 @@
 import cairo
 import argparse
 import re
+import random
 
 
 
@@ -19,26 +20,29 @@ args = parse_args()
 
 
 
-def get_colors(motifs: dict) -> dict: 
-    colors: dict = dict()
-    r = 0; g = 0; b = 0
-    for i, m in enumerate(motifs): 
-        match i % 3:
-            case 0: 
-                r += 1
-            case 1:
-                g += 1
-            case 2: 
-                b += 1
-        if r == g and r == b and r != 0: 
-                r = 0; g = 0
-        color_list = [r, g, b, 0]
-        colors.update({m: color_list})
+def get_colors(motifs): 
+    '''This function will be used to create a rgb color code for each motif sequence. It will add 1 to 
+    one of the rgb values each iteration. This will ensure each motif has a unique color. '''
+    colors = dict()
+    random.seed(5)
+    for motif in motifs:
+        while True:
+            # Generate random RGB values between 0 and 255
+            r = random.randint(0, 255) / 255
+            g = random.randint(0, 255) / 255
+            b = random.randint(0, 255) / 255
+            
+            # Ensure the color is not white (1, 1, 1) or black (0, 0, 0)
+            if (r, g, b) != (1, 1, 1) and (r, g, b) != (0, 0, 0):
+                break
+        
+        # Add the RGB values to the dictionary
+        colors[motif] = [r, g, b]
     return colors
 
 
 list_motifs = []
-# read motif and put in dict with a color
+# Read motif file and put in each motif sequence in a list
 dict_of_motif_color = {}
 with open(args.m, mode ="r") as motif_file:
     for line in motif_file:
@@ -50,7 +54,7 @@ dict_of_motif_color = get_colors(list_motifs)
 
 
 
-
+# IUPAC is the International Union of Pure and Applied Chemistry. This table is the shorthand codes for ambiguous bases.
 IUPAC_REGEX = {'A': '[Aa]', 'a': '[Aa]',
                'C': '[Cc]', 'c': '[Cc]',
                'T': '[Tt]', 't': '[Tt]', 
@@ -69,8 +73,10 @@ IUPAC_REGEX = {'A': '[Aa]', 'a': '[Aa]',
                'N': '[AaCcTtUuGg]', 'n': '[AaCcTtUuGg]'}
 
 
-# creating the regex equivalent of each motif
+
 def convert_regex(motif_seq):
+    '''This function creates the regex equivalent of each motif. It intakes a single motif sequence and
+    returns the equivalent IUPAC regex expression.'''
     regex = ""
     for char in motif_seq:
         # Look up the corresponding IUPAC regex pattern
@@ -78,8 +84,10 @@ def convert_regex(motif_seq):
     return regex
 
 
+# Inititalize a dictionary holding motif sequences as keys and regex expressions as values
 motif_regex = {}
 
+# Do the regex conversion for each motif and add to a dictionary
 for motif_seq in list_motifs:
     motif_regex[motif_seq] = convert_regex(motif_seq)
 
@@ -87,8 +95,9 @@ for motif_seq in list_motifs:
 
 
 
-
 def find_motifs(record, dict_of_motif_color, regex_dict):
+    '''This function will locaate every motif in the fasta record. It will then place each match into a motif object,
+    with its start position, stop position, and corresponding color.'''
     motif_matches = []  # List to hold all motif match objects
 
     # Iterate through each motif and its regex pattern
@@ -99,7 +108,6 @@ def find_motifs(record, dict_of_motif_color, regex_dict):
         for match in re.finditer(regex_pattern, record):
             start, stop = match.start(), match.end() - 1  # Adjust for zero-based indexing
             # Create a Motif object and add it to the list
-            print(f"Matched motifs: {match.group()} at position {match.start()} to {match.end()}")
             motif_matches.append(motif(start, stop, color))
 
     return motif_matches
@@ -155,12 +163,12 @@ class exon:
         self.name = name
 
     def draw(self, context, rank):
-        context.set_source_rgb(0,0,0) 
+        context.set_source_rgba(0,0,0, 0.5) 
         context.rectangle(self.start+200,rank -25,self.stop-self.start,50)
         context.fill()
         context.set_source_rgba(0, 0, 0, 1)
         context.set_font_size(25) 
-        context.move_to(50, rank)
+        context.move_to(50, rank+10)
         context.show_text(f"{self.name}")
 
 
@@ -258,14 +266,14 @@ with open("oneline.fa", mode = "r") as fasta:
 
 
 
-
-
+filename = args.f
+filename = filename.split(".")[0]
 
 # Define the pycairo surface to draw on.
-# Adjust width based on the fact seqs < 1000, height is number of (genes*100)+300
-width, height = 1200, len(list_of_geneGroups)*100+300
+# Adjust width based on the fact seqs < 1000
+width, height = 1100, (len(list_of_geneGroups)*100) + 150 + (len(list_motifs) * 30)
 #create the coordinates to display your graphic, desginate output
-surface = cairo.SVGSurface(f"{args.f}.svg",width, height)
+surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,width, height)
 #create the coordinates you will be drawing on 
 context = cairo.Context(surface)
 context.set_source_rgb(1, 1, 1)  # RGB values for white surface
@@ -285,16 +293,17 @@ for GeneGroup in list_of_geneGroups:
 
 # Draw a legend
 for i, m in enumerate(dict_of_motif_color):
+    # motif labels
     context.set_source_rgba(0, 0, 0, 1)
     context.set_font_size(20) 
-    context.move_to(100, i*30 + len(list_of_geneGroups)*100 + 200)
+    context.move_to(100, i*30 + len(list_of_geneGroups)*100 + 150)
     context.show_text(f"{m}")
 
     color = dict_of_motif_color[m]
     context.set_source_rgb(color[0],color[1],color[2])  
-    context.set_line_width(5)
-    context.move_to(20, i*30 + len(list_of_geneGroups)*100 + 200)  #(x,y)
-    context.line_to(80,i*30 + len(list_of_geneGroups)*100 + 200)
+    context.set_line_width(10)
+    context.move_to(20, i*30 + (len(list_of_geneGroups)*100) + 145)  #(x,y)
+    context.line_to(80,i*30 + (len(list_of_geneGroups)*100) + 145)
     context.stroke()
 
 
@@ -302,5 +311,5 @@ for i, m in enumerate(dict_of_motif_color):
 
 
 
-surface.write_to_png(f"{args.f}.png")
+surface.write_to_png(f"{filename}.png")
 
