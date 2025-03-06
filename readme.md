@@ -14,6 +14,6 @@ It will generate an output PNG file with the same prefix as the input FASTA file
 \
 The script must be runnable in the following environment:\
 conda create -n my_pycairo pycairo\
-conda activate my_pycairo\
+conda activate my_pycairo
 
 ![Figure 1](Figure_1.png)
