@@ -6,7 +6,7 @@ Input Files:\
 A FASTA file containing DNA sequences (each sequence ≤ 1000 bases).\
 A motifs file with motifs (each ≤ 10 bases, one motif per line).\
 \
-The script must use the argparse library with the specified options: \ 
+The script must use the argparse library with the specified options:\
 -f: FASTA file input\
 -m: Motifs file input\
 \
