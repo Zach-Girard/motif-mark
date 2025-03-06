@@ -21,24 +21,24 @@ args = parse_args()
 
 
 def get_colors(motifs): 
-    '''This function will be used to create a rgb color code for each motif sequence. It will add 1 to 
-    one of the rgb values each iteration. This will ensure each motif has a unique color. '''
+    '''This function will be used to create a random rgb color code for each motif sequence.'''
     colors = dict()
     random.seed(5)
     for motif in motifs:
         while True:
-            # Generate random RGB values between 0 and 255
+            # Generate random RGB values between 0 and 255 and convert to decimal
             r = random.randint(0, 255) / 255
             g = random.randint(0, 255) / 255
             b = random.randint(0, 255) / 255
             
-            # Ensure the color is not white (1, 1, 1) or black (0, 0, 0)
+            # Ensure the color is not pure white (1, 1, 1) or pure black (0, 0, 0)
             if (r, g, b) != (1, 1, 1) and (r, g, b) != (0, 0, 0):
                 break
         
         # Add the RGB values to the dictionary
         colors[motif] = [r, g, b]
     return colors
+
 
 
 list_motifs = []
@@ -49,6 +49,8 @@ with open(args.m, mode ="r") as motif_file:
         motif_seq = line.strip()
         list_motifs.append(motif_seq)
 
+
+# Create the rgb value for each motif
 dict_of_motif_color = get_colors(list_motifs)
 
 
@@ -82,6 +84,7 @@ def convert_regex(motif_seq):
         # Look up the corresponding IUPAC regex pattern
         regex += IUPAC_REGEX.get(char)
     return regex
+
 
 
 # Inititalize a dictionary holding motif sequences as keys and regex expressions as values
@@ -163,9 +166,11 @@ class exon:
         self.name = name
 
     def draw(self, context, rank):
+        # Draw exon
         context.set_source_rgba(0,0,0, 0.5) 
         context.rectangle(self.start+200,rank -25,self.stop-self.start,50)
         context.fill()
+        # Add gene name text next to gene
         context.set_source_rgba(0, 0, 0, 1)
         context.set_font_size(25) 
         context.move_to(50, rank+10)
@@ -212,8 +217,9 @@ oneline_fasta(args.f, "oneline.fa")
 
 
 
-rank = 0
-list_of_geneGroups = []
+rank = 0 # The gene number in the fasta record
+list_of_geneGroups = []  # Holds all GeneGroup objects created
+
 # read through fasta file and do everything
 with open("oneline.fa", mode = "r") as fasta:
     for line in fasta:
@@ -225,17 +231,19 @@ with open("oneline.fa", mode = "r") as fasta:
         # read header line to get gene name
         if line.startswith(">"):
             name = line.split('\t')[0] 
-            name = name.split('>')[1] # pull out gene name
-            name = name.split(' ')[0] 
+            name = name.split('>')[1] 
+            name = name.split(' ')[0] # pull out gene name
 
         # read each fasta record
         else:
             record = line
+
+            # Increase rank with each record being processed
             rank += 1
+
             # define the start and stop of the gene and create gene object
             stop = len(record)
             current_Gene = gene(0, stop)
-
 
             # Loop through the string to find the first and last uppercase characters
             for i, char in enumerate(record):
@@ -270,7 +278,7 @@ filename = args.f
 filename = filename.split(".")[0]
 
 # Define the pycairo surface to draw on.
-# Adjust width based on the fact seqs < 1000
+# Adjust width based on the fact seqs < 1000, height is sclaed by number of GeneGroups and motif sequences
 width, height = 1100, (len(list_of_geneGroups)*100) + 150 + (len(list_motifs) * 30)
 #create the coordinates to display your graphic, desginate output
 surface = cairo.ImageSurface(cairo.FORMAT_ARGB32,width, height)
@@ -280,11 +288,11 @@ context.set_source_rgb(1, 1, 1)  # RGB values for white surface
 context.rectangle(0, 0, width, height)
 context.fill()
 
-  # draw plot title
+# draw plot title
 context.set_source_rgba(0, 0, 0, 1)
 context.set_font_size(40) 
-context.move_to(500, 50)
-context.show_text("Motif Plot") 
+context.move_to(375, 50)
+context.show_text(f"{filename} Motif Plot") 
 
 # draw all genes and names
 for GeneGroup in list_of_geneGroups:
@@ -298,16 +306,13 @@ for i, m in enumerate(dict_of_motif_color):
     context.set_font_size(20) 
     context.move_to(100, i*30 + len(list_of_geneGroups)*100 + 150)
     context.show_text(f"{m}")
-
+    # Colored line for each motif
     color = dict_of_motif_color[m]
     context.set_source_rgb(color[0],color[1],color[2])  
     context.set_line_width(10)
     context.move_to(20, i*30 + (len(list_of_geneGroups)*100) + 145)  #(x,y)
     context.line_to(80,i*30 + (len(list_of_geneGroups)*100) + 145)
     context.stroke()
-
-
-
 
 
 
